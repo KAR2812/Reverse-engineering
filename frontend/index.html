@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Reverse Engineering AI</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --glow-text: #ffffff;
+      --bg-dark: #000000;
+      --accent-glow: #ffae00;
+      --hero-glow: rgba(255, 165, 0, 0.2);
+      --button-bg: #0a84ff;
+      --button-hover: #0066cc;
+    }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--glow-text);
+      height: 100%;
+      overflow-x: hidden;
+    }
+    .hero {
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      background: radial-gradient(circle at center, #111111 0%, #000000 100%);
+      text-align: center;
+      overflow: hidden;
+    }
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 700;
+      z-index: 2;
+      position: relative;
+      color: white;
+      text-shadow: 0 0 30px var(--accent-glow), 0 0 10px white;
+      margin-bottom: 10px;
+    }
+    .hero h2 {
+      font-size: 1.5rem;
+      font-weight: 400;
+      z-index: 2;
+      color: #cccccc;
+      margin-bottom: 30px;
+    }
+    .pro-background {
+      font-size: 12rem;
+      font-weight: bold;
+      position: absolute;
+      bottom: 0;
+      color: white;
+      opacity: 0.08;
+      z-index: 0;
+      pointer-events: none;
+    }
+    .btns {
+      display: flex;
+      gap: 20px;
+      z-index: 2;
+    }
+    button {
+      background: var(--button-bg);
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      font-size: 1rem;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.3s ease;
+    }
+    button:hover {
+      background: var(--button-hover);
+      transform: scale(1.05);
+    }
+    .section {
+      padding: 80px 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+    .section h3 {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+    }
+    pre {
+      background: #111;
+      border: 1px solid #333;
+      padding: 20px;
+      border-radius: 12px;
+      color: #0f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: monospace;
+      overflow-x: auto;
+      box-shadow: 0 0 30px rgba(0, 255, 0, 0.1);
+    }
+    input[type="file"] {
+      background: #222;
+      color: white;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid #444;
+      margin-bottom: 30px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="hero">
+    <h1>Reverse Engineering AI</h1>
+    <h2>Built for Binary Intelligence</h2>
+    <input type="file" id="fileInput" />
+    <div class="btns">
+      <button onclick="upload()">Upload & Disassemble</button>
+      <button onclick="sendToAI()">Convert to Source Code</button>
+    </div>
+    <div class="pro-background">PROJECT</div>
+  </div>
+
+  <div class="section">
+    <h3>Disassembled Assembly Code</h3>
+    <pre id="output">Waiting for file...</pre>
+
+    <h3>Generated Source Code</h3>
+    <pre id="coutput">Not sent yet...</pre>
+
+    <h3>Explanation of Conversion</h3>
+    <pre id="explanation">Explanation will appear here...</pre>
+  </div>
+
+  <script>
+    let currentAssembly = localStorage.getItem("assemblyCode") || "";
+    const outputElem = document.getElementById("output");
+    const coutputElem = document.getElementById("coutput");
+    const explanationElem = document.getElementById("explanation");
+    if (currentAssembly) {
+      outputElem.textContent = currentAssembly;
+    }
+
+    async function upload() {
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file!");
+        return;
+      }
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("http://localhost:5500/upload", {
+          method: "POST",
+          body: formData,
+        });
+        if (!res.ok) throw new Error("Upload failed");
+        const data = await res.json();
+        currentAssembly = data.assembly_code;
+        localStorage.setItem("assemblyCode", currentAssembly);
+        outputElem.textContent = currentAssembly;
+      } catch (err) {
+        console.error("Error:", err);
+        outputElem.textContent = "Failed to get assembly code.";
+      }
+    }
+
+    async function sendToAI() {
+      if (!currentAssembly) {
+        alert("No assembly code to convert!");
+        return;
+      }
+      const requestBody = {
+        prompt: { text: currentAssembly },
+        temperature: 0.5,
+        candidateCount: 1
+      };
+      try {
+        const res = await fetch("http://localhost:5500/aicon", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(requestBody)
+        });
+        if (!res.ok) throw new Error("Conversion failed");
+        const data = await res.json();
+        const codeResult = data.source_code || "No source code received.";
+        const explanationResult = data.explanation || "No explanation received.";
+        coutputElem.textContent = codeResult;
+        explanationElem.textContent = explanationResult;
+      } catch (err) {
+        console.error("Error:", err);
+        coutputElem.textContent = "Failed to convert to source code.";
+        explanationElem.textContent = "Failed to get explanation.";
+      }
+    }
+    localStorage.removeItem("assemblyCode");
+    window.upload = upload;
+    window.sendToAI = sendToAI;
+  </script>
+</body>
+</html>
